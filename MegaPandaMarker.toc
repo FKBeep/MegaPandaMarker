@@ -1,0 +1,11 @@
+## Interface: 100007
+## Title: MegapandaMarker
+## Notes: Marks the target you are mousing over with a raid marker.
+## Author: Magapanda from Pyrewood-Village (EU) with help from Silver
+## Version: 1.0
+## SavedVariables: MegapandaMarkerDB, ROLE_LISTS, MegapandaVisible
+
+Utils.lua
+MegaList.lua
+MegaPandaMarker.lua
+MegaMarkerUISettings.lua

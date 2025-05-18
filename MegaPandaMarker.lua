@@ -151,8 +151,6 @@ end
 
 
 local function clearNilMarks()
-
-	
 --    for index = 1, 8 do
  --       local assignment = markerAssignments[index]
 --
@@ -317,7 +315,7 @@ SlashCmdList["MPM"] = function(msg)
         pandaWindow:Hide()
         MegapandaVisible = false
     elseif command == "unmark" then
-        MPM_Clear()
+        MPM_Unmark()
     elseif command == "mark" then
         MPM_SetMarks(subCommand)  -- Pass additional arguments to set marks
     elseif command == "enable" then
@@ -327,7 +325,7 @@ SlashCmdList["MPM"] = function(msg)
     elseif command == "setting" then
         frame_ui_settings:Show()
     elseif command == "clear" then
-        MPM_Wipe()
+        MPM_Clear()
     else
         MPM_ShowHelp()
     end
@@ -363,66 +361,23 @@ function MPM_ShowHelp()
 end
 
 -- Clear function
-function MPM_Clear()
-	last_mark_id = -1
-	last_clear_id = -1
-	
-	markToggleButton:SetAlpha(0.5)
-    unmarkToggleButton:SetAlpha(1)
-    clearButton:SetAlpha(0.5)
-    button2_enabled = true
-	button1_enabled = false
-	button4_enabled = false
-	activeButton = unmarkToggleButton
-
-	--markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
-	markingDisabled = false
-    debugPrint("(o.O) MegaPandaMarker: Clearing enabled. Mouseover to clear marks!")
-    clearMarksToggle = true
-    -- Add your clearing logic here
+function MPM_Unmark()
+	ActivateUnmarkingMode()
 end
 
 -- Clear function
-function MPM_Wipe()
-	last_mark_id = -1
-	last_clear_id = -1
-	
-	markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
-	ClearAllMarksWithDelay()
+function MPM_Clear()
+	ClearAllMarksNow()
 end
 
 -- SetMarks function
 function MPM_SetMarks(args)
-	last_mark_id = -1
-	last_clear_id = -1
-	
-	markToggleButton:SetAlpha(1)
-    unmarkToggleButton:SetAlpha(0.5)
-    clearButton:SetAlpha(0.5)
-    button2_enabled = false
-	button1_enabled = true
-	button4_enabled = false
-	activeButton = markToggleButton
-
-	markingDisabled = false
-	clearMarksToggle = false
-    debugPrint("(o.O) MegaPandaMarker: Marking enabled. Mouseover and mark!")
-    -- Add your logic to set marks here
+	ActivateMarkingMode()
 end
 
 -- Disable function
 function MPM_Disable()
-	markToggleButton:SetAlpha(0.5)
-    unmarkToggleButton:SetAlpha(0.5)
-    clearButton:SetAlpha(0.5)
-    button2_enabled = false
-	button1_enabled = false
-	button4_enabled = false
-	activeButton = nil
-
-	markingDisabled = true
-    debugPrint("(o.O) MegaPandaMarker: Marking disabled!")
-    -- Add disable logic here
+	DeactivateCurrentMode()
 end
 
 
@@ -525,184 +480,174 @@ logo:SetSize(35, 35)
 logo:SetPoint("TOPLEFT", pandaWindow, "TOPLEFT", 10, -3)
 
 
--- Create the marker icon button
-markToggleButton = CreateFrame("Button", nil, pandaWindow)
-markToggleButton:SetSize(30, 30)
-markToggleButton:SetPoint("CENTER", pandaWindow, "TOPRIGHT", -127, -20)
-markToggleButton:SetNormalTexture("Interface\\AddOns\\MegaPandaMarker\\mark.png")
-markToggleButton:SetAlpha(0.5)
-
--- Create the unmarking icon button
-unmarkToggleButton = CreateFrame("Button", nil, pandaWindow)
-unmarkToggleButton:SetSize(30, 30)
-unmarkToggleButton:SetPoint("CENTER", pandaWindow, "TOPRIGHT", -92, -20)
-unmarkToggleButton:SetNormalTexture("Interface\\AddOns\\MegaPandaMarker\\unmark.png")
-unmarkToggleButton:SetAlpha(0.5)
-
-
--- Create the clear icon button
-clearButton = CreateFrame("Button", nil, pandaWindow)
-clearButton:SetSize(30, 30)
-clearButton:SetPoint("CENTER", pandaWindow, "TOPRIGHT", -57, -20)
-clearButton:SetNormalTexture("Interface\\Icons\\Spell_Shadow_Teleport")
-clearButton:SetAlpha(0.5)
-
--- Create the settings icon button
-local settingsButton = CreateFrame("Button", nil, pandaWindow)
-settingsButton:SetSize(30, 30)
-settingsButton:SetPoint("CENTER", pandaWindow, "TOPRIGHT", -22, -20)
-settingsButton:SetNormalTexture("Interface\\Icons\\Inv_misc_gear_01")
-settingsButton:SetAlpha(0.5)
-
--- Variable to track the active button
-local activeButton = nil
-
--- Function to handle button click and update active state
-local function handleButtonClick(button)
-    if activeButton ~= button then
-        activeButton = button
-        markToggleButton:SetAlpha(button == markToggleButton and 1 or 0.5)
-        unmarkToggleButton:SetAlpha(button == unmarkToggleButton and 1 or 0.5)
-        clearButton:SetAlpha(button == clearButton and 1 or 0.5)
-        --settingsButton:SetAlpha(button == settingsButton and 1 or 0.5)
-        debugPrint(button == markToggleButton and "Button 1 activated!" or button == unmarkToggleButton and "Button 2 activated!" or "Button 3 activated!")
-    else
-        activeButton = nil
-        button:SetAlpha(0.5)
-        debugPrint(button == markToggleButton and "Button 1 deactivated!" or button == unmarkToggleButton and "Button 2 deactivated!" or "Button 3 deactivated!")
-    end
+-- === Utility: Create a styled icon button ===
+local function CreateIconButton(parent, xOffset, texture)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(30, 30)
+    btn:SetPoint("CENTER", parent, "TOPRIGHT", xOffset, -20)
+    btn:SetNormalTexture(texture)
+    btn:SetAlpha(0.5)
+    btn:EnableMouse(true)
+    return btn
 end
 
-button1_enabled = false
-button2_enabled = false
-button4_enabled = false
+-- === Create UI Buttons ===
+markToggleButton   = CreateIconButton(pandaWindow, -127, "Interface\\AddOns\\MegaPandaMarker\\mark.png")
+unmarkToggleButton = CreateIconButton(pandaWindow, -92,  "Interface\\AddOns\\MegaPandaMarker\\unmark.png")
+clearButton        = CreateIconButton(pandaWindow, -57,  "Interface\\Icons\\Spell_Shadow_Teleport")
+local settingsButton = CreateIconButton(pandaWindow, -22, "Interface\\Icons\\Inv_misc_gear_01")
 
--- Set click events for marker button
-markToggleButton:SetScript("OnClick", function() handleButtonClick(markToggleButton) 
-	last_mark_id = -1
-	last_clear_id = -1
-	
-	button1_enabled = not button1_enabled
-	button2_enabled = false;
-	button4_enabled = false
-	
-	if button1_enabled then
-		markingDisabled = false
-		clearMarksToggle = false
-   		debugPrint("(o.O) MegaPandaMarker: Marking enabled. Mouseover and mark!")
-   		markToggleButton:SetAlpha(1)
-	else
-		clearMarksToggle = false
-		markingDisabled = true
-		markToggleButton:SetAlpha(0.5)
-	end
-end)
+-- === State Tracking ===
+local currentActiveButton = nil
+isMarkingModeActive = false
+isUnmarkingModeActive = false
+isSettingsOpen = false
 
+-- === Shared state reset ===
+local function ResetAllModes()
+    isMarkingModeActive = false
+    isUnmarkingModeActive = false
+    isSettingsOpen = false
+    markingDisabled = true
+    clearMarksToggle = false
 
-unmarkToggleButton:SetScript("OnClick", function() handleButtonClick(unmarkToggleButton) 
-	last_mark_id = -1
-	last_clear_id = -1
-	
-	
-	button2_enabled = not button2_enabled
-	button1_enabled = false
-	button4_enabled = false
-	if button2_enabled then
-		--markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
-		markingDisabled = false
-    	debugPrint("(o.O) MegaPandaMarker: Clearing enabled. Mouseover to clear marks!")
-    	clearMarksToggle = true
-    	unmarkToggleButton:SetAlpha(1)
-	else
-		clearMarksToggle = false
-		markingDisabled = true
-		unmarkToggleButton:SetAlpha(0.5)
-	end
-end)
+    markToggleButton:SetAlpha(0.5)
+    unmarkToggleButton:SetAlpha(0.5)
+    clearButton:SetAlpha(0.5)
+end
 
-
-
--- Button 3 specific functionality for highlight on press and reset on release
-clearButton:SetScript("OnMouseDown", function()
-    clearButton:SetAlpha(1)  -- Highlight to full alpha when pressed
-end)
-
-clearButton:SetScript("OnMouseUp", function()
-    clearButton:SetAlpha(0.5)  -- Reset to 50% alpha when released
-    
+local function ResetLastIDs()
     last_mark_id = -1
-	last_clear_id = -1
-	
-	markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
-	ClearAllMarksWithDelay()
-end)
+    last_clear_id = -1
+end
 
--- Button 3 specific functionality for highlight on press and reset on release
-settingsButton:SetScript("OnMouseDown", function()
-    settingsButton:SetAlpha(1)  -- Highlight to full alpha when pressed
-end)
-settingsButton:SetScript("OnMouseUp", function()
-    settingsButton:SetAlpha(0.5)  -- Reset to 50% alpha when released
-    --handleButtonClick(settingsButton)
+-- === Public Functions ===
+
+function ActivateMarkingMode()
+    ResetAllModes()
+    ResetLastIDs()
+
+    isMarkingModeActive = true
+    markingDisabled = false
+    markToggleButton:SetAlpha(1)
+    currentActiveButton = markToggleButton
+
+    debugPrint("(o.O) MegaPandaMarker: Marking enabled. Mouseover and mark!")
+end
+
+function ActivateUnmarkingMode()
+    ResetAllModes()
+    ResetLastIDs()
+
+    isUnmarkingModeActive = true
+    clearMarksToggle = true
+    markingDisabled = false
+    unmarkToggleButton:SetAlpha(1)
+    currentActiveButton = unmarkToggleButton
+
+    debugPrint("(o.O) MegaPandaMarker: Clearing enabled. Mouseover to clear marks!")
+end
+
+function DeactivateCurrentMode()
+    ResetAllModes()
+    ResetLastIDs()
+
+    currentActiveButton = nil
+    debugPrint("(o.O) MegaPandaMarker: All modes deactivated.")
+end
+
+function ClearAllMarksNow()
+    ResetLastIDs()
+    markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
+    ClearAllMarksWithDelay()
+
+    clearButton:SetAlpha(1)
+    C_Timer.After(0.1, function()
+        clearButton:SetAlpha(0.5)
+    end)
+end
+
+function OpenSettings()
+    settingsButton:SetAlpha(1)
+    C_Timer.After(0.1, function()
+        settingsButton:SetAlpha(0.5)
+    end)
     frame_ui_settings:Show()
+end
+
+-- === Button Bindings ===
+
+markToggleButton:SetScript("OnClick", function()
+    if currentActiveButton == markToggleButton then
+        DeactivateCurrentMode()
+    else
+        ActivateMarkingMode()
+    end
 end)
 
--- Enable mouse clicks on all buttons
-markToggleButton:EnableMouse(true)
-unmarkToggleButton:EnableMouse(true)
-settingsButton:EnableMouse(true)
+unmarkToggleButton:SetScript("OnClick", function()
+    if currentActiveButton == unmarkToggleButton then
+        DeactivateCurrentMode()
+    else
+        ActivateUnmarkingMode()
+    end
+end)
 
+clearButton:SetScript("OnMouseDown", function()
+    clearButton:SetAlpha(1)
+end)
 
+clearButton:SetScript("OnMouseUp", ClearAllMarksNow)
 
--- Event handler for ADDON_LOADED
+settingsButton:SetScript("OnMouseDown", function()
+    settingsButton:SetAlpha(1)
+end)
+
+settingsButton:SetScript("OnMouseUp", OpenSettings)
+
+-- === Event Handler for ADDON_LOADED ===
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addon)
     if addon == "MegaPandaMarker" then
-    	InitializeMarkers()
-    	
-    	print (MegapandaVisible)
-    	
-    	if MegapandaVisible == nil then
-			MegapandaVisible = true
-		end
-		
-		if MegapandaVisible then
-			pandaWindow:Show()  -- Ensure the window is shown
-		else 
-			pandaWindow:Hide()
-		end
-    	
-		print('(o.O) MegaPandaMarker 1.0 addOn loaded. Write /mpm to show help')
+        InitializeMarkers()
+
+        print(MegapandaVisible)
+
+        if MegapandaVisible == nil then
+            MegapandaVisible = true
+        end
+
+        if MegapandaVisible then
+            pandaWindow:Show()
+        else
+            pandaWindow:Hide()
+        end
+
+        print('(o.O) MegaPandaMarker 1.0 addOn loaded. Write /mpm to show help')
     end
 end)
 
+-- === Optional: Reset State On Spell Cast or Zone Change ===
+pandaWindow:SetScript("OnEvent", function(self, event, unit, _, spellID)
+    if spellID and spellID ~= 8690 then return end -- Ignore non-relevant spells
 
---pandaWindow:RegisterEvent("PLAYER_ENTERING_WORLD")
---pandaWindow:RegisterEvent("ZONE_CHANGED_NEW_AREA")
---pandaWindow:RegisterEvent("ZONE_CHANGED")
---pandaWindow:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-
-pandaWindow:SetScript("OnEvent",  function(self, event, unit, _, spellID)
-
-    if spellID and spellID ~= 8690 then -- Example spellID check, like Hearthstone
-        return
-    end
-		
     last_mark_id = -1
-	last_clear_id = -1
-	
-	markToggleButton:SetAlpha(0.5)
+    last_clear_id = -1
+
+    markToggleButton:SetAlpha(0.5)
     unmarkToggleButton:SetAlpha(0.5)
     clearButton:SetAlpha(0.5)
-    button2_enabled = false
-	button1_enabled = false
-	button4_enabled = false
-	activeButton = nil
 
-	markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
-	markingDisabled = true
+    isMarkingModeActive = false
+    isUnmarkingModeActive = false
+    isSettingsOpen = false
+    currentActiveButton = nil
+
+    markerAssignments = {nil, nil, nil, nil, nil, nil, nil, nil}
+    markingDisabled = true
     clearMarksToggle = false
 end)
+
 
 
 

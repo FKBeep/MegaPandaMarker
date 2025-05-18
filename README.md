@@ -48,9 +48,13 @@ Slash Commands:
 
 /mpm clear – Wipe all marks
 
-/mpm stop – Disable the addon
+/mpm stop – Stop any marking or unmarking
 
 /mpm setting – Open the settings window
+
+/mpm show – Show the addon
+
+/mpm hide – Hide the addon
 
 
 🛠 Example Use Case
